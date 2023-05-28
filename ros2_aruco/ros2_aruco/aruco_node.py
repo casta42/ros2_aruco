@@ -48,7 +48,7 @@ class ArucoNode(rclpy.node.Node):
 
         # Declare and read parameters
         self.declare_parameter("marker_size", .0625)
-        self.declare_parameter("aruco_dictionary_id", "DICT_5X5_250")
+        self.declare_parameter("aruco_dictionary_id", "DICT_APRILTAG_16h5")
         self.declare_parameter("image_topic", "/camera/image_raw")
         self.declare_parameter("camera_info_topic", "/camera/camera_info")
         self.declare_parameter("camera_frame", None)
@@ -63,7 +63,7 @@ class ArucoNode(rclpy.node.Node):
         # Make sure we have a valid dictionary id:
         try:
             dictionary_id = cv2.aruco.__getattribute__(dictionary_id_name)
-            if type(dictionary_id) != type(cv2.aruco.DICT_5X5_100):
+            if type(dictionary_id) != type(cv2.aruco.DICT_APRILTAG_16h5):
                 raise AttributeError
         except AttributeError:
             self.get_logger().error("bad aruco_dictionary_id: {}".format(dictionary_id_name))
@@ -107,14 +107,17 @@ class ArucoNode(rclpy.node.Node):
 
         cv_image = self.bridge.imgmsg_to_cv2(img_msg,
                                              desired_encoding='mono8')
+        
+
         markers = ArucoMarkers()
         pose_array = PoseArray()
         if self.camera_frame is None:
             markers.header.frame_id = self.info_msg.header.frame_id
             pose_array.header.frame_id = self.info_msg.header.frame_id
         else:
-            markers.header.frame_id = self.camera_frame
-            pose_array.header.frame_id = self.camera_frame
+
+            markers.header.frame_id = "aruco"
+            pose_array.header.frame_id = "aruco"
             
             
         markers.header.stamp = img_msg.header.stamp
@@ -123,8 +126,9 @@ class ArucoNode(rclpy.node.Node):
         corners, marker_ids, rejected = cv2.aruco.detectMarkers(cv_image,
                                                                 self.aruco_dictionary,
                                                                 parameters=self.aruco_parameters)
+        
         if marker_ids is not None:
-
+            print("corners")
             if cv2.__version__ > '4.0.0':
                 rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(corners,
                                                                       self.marker_size, self.intrinsic_mat,
@@ -151,6 +155,7 @@ class ArucoNode(rclpy.node.Node):
                 pose_array.poses.append(pose)
                 markers.poses.append(pose)
                 markers.marker_ids.append(marker_id[0])
+                
 
             self.poses_pub.publish(pose_array)
             self.markers_pub.publish(markers)
